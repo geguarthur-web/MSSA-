@@ -69,3 +69,41 @@ Créer un fichier `server/.env` :
 PORT=4000
 JWT_SECRET=change-moi-en-production
 ```
+
+## Déploiement (obtenir une URL publique)
+
+En production, le serveur Express sert directement le frontend buildé
+(`client/dist`) en plus de l'API : une seule URL suffit, pas besoin
+d'héberger le frontend séparément.
+
+### Option rapide : Render (gratuit)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/geguarthur-web/MSSA-)
+
+1. Cliquez sur le bouton ci-dessus (ou allez sur https://render.com et créez
+   un "Blueprint" à partir de ce dépôt).
+2. Connectez votre compte GitHub, sélectionnez le dépôt `geguarthur-web/MSSA-`
+   et la branche `claude/incivility-map-reporting-lqoxye` (ou `main` une fois
+   mergée).
+3. Render détecte `render.yaml` à la racine et configure automatiquement le
+   build (`npm install` + `npm run build` du client, puis démarrage du
+   serveur) et un `JWT_SECRET` généré aléatoirement.
+4. Cliquez sur "Apply" / "Deploy" : au bout de quelques minutes, Render
+   fournit une URL publique du type `https://signalcivic.onrender.com`.
+
+**Limite du plan gratuit** : le disque n'est pas persistant entre les
+redémarrages du service (mise en veille après inactivité). La base SQLite et
+les photos uploadées peuvent donc être réinitialisées de temps en temps.
+Pour une utilisation réelle, passer à un disque persistant Render (payant)
+ou migrer vers une base gérée (PostgreSQL) serait nécessaire.
+
+### Déploiement manuel sur un serveur (VPS, etc.)
+
+```bash
+cd client && npm install && npm run build
+cd ../server && npm install
+JWT_SECRET=... PORT=4000 node src/index.js
+```
+
+L'application complète (API + carte) est alors servie sur
+`http://<votre-domaine>:4000`.

@@ -22,6 +22,15 @@ app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
 app.use("/api/auth", authRoutes);
 app.use("/api/incidents", incidentRoutes);
 
+// Sert le frontend buildé (client/dist) s'il existe, pour un déploiement en une seule URL.
+const clientDist = path.join(__dirname, "..", "..", "client", "dist");
+app.use(express.static(clientDist));
+app.get(/^(?!\/api|\/uploads).*/, (_req, res, next) => {
+  res.sendFile(path.join(clientDist, "index.html"), (err) => {
+    if (err) next();
+  });
+});
+
 // Gestion centralisée des erreurs (dont les erreurs multer : taille/format de fichier)
 app.use((err, _req, res, _next) => {
   if (err instanceof multer.MulterError || err) {
