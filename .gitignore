@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+*.log
+
+# Base de données locale (SQLite)
+server/data.sqlite
+server/data.sqlite-shm
+server/data.sqlite-wal
+
+# Photos uploadées par les utilisateurs
+server/uploads/*
+!server/uploads/.gitkeep
