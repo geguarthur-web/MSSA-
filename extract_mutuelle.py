@@ -67,12 +67,15 @@ OUTPUT_SCHEMA = {
 SUPPORTED_MEDIA_TYPES = {"image/jpeg", "image/png"}
 
 
+class ExtractionError(Exception):
+    """Erreur métier (fichier invalide, auth manquante, refus API...)."""
+
+
 def encode_image(image_path: Path) -> tuple[str, str]:
     media_type, _ = mimetypes.guess_type(image_path.name)
     if media_type not in SUPPORTED_MEDIA_TYPES:
-        sys.exit(
-            f"Erreur : format d'image non supporté ({media_type}). "
-            "Utilisez un fichier JPG ou PNG."
+        raise ExtractionError(
+            f"Format d'image non supporté ({media_type}). Utilisez un fichier JPG ou PNG."
         )
     data = base64.standard_b64encode(image_path.read_bytes()).decode("utf-8")
     return media_type, data
@@ -80,9 +83,9 @@ def encode_image(image_path: Path) -> tuple[str, str]:
 
 def extract_info(image_path: Path) -> dict:
     if not os.environ.get("ANTHROPIC_API_KEY"):
-        sys.exit(
-            "Erreur d'authentification : définissez la variable d'environnement "
-            "ANTHROPIC_API_KEY avec votre clé API Anthropic."
+        raise ExtractionError(
+            "Variable d'environnement ANTHROPIC_API_KEY manquante. "
+            "Définissez-la avec votre clé API Anthropic."
         )
 
     client = anthropic.Anthropic()  # lit ANTHROPIC_API_KEY dans l'environnement
@@ -111,15 +114,14 @@ def extract_info(image_path: Path) -> dict:
             ],
         )
     except anthropic.AuthenticationError:
-        sys.exit(
-            "Erreur d'authentification : définissez la variable d'environnement "
-            "ANTHROPIC_API_KEY avec votre clé API Anthropic."
+        raise ExtractionError(
+            "Authentification refusée : vérifiez votre variable ANTHROPIC_API_KEY."
         )
     except anthropic.APIStatusError as exc:
-        sys.exit(f"Erreur API Anthropic ({exc.status_code}) : {exc.message}")
+        raise ExtractionError(f"Erreur API Anthropic ({exc.status_code}) : {exc.message}")
 
     if response.stop_reason == "refusal":
-        sys.exit("Erreur : la demande a été refusée par les filtres de sécurité de l'API.")
+        raise ExtractionError("La demande a été refusée par les filtres de sécurité de l'API.")
 
     text = next(block.text for block in response.content if block.type == "text")
     return json.loads(text)
@@ -162,7 +164,10 @@ def main() -> None:
     output_path = Path(args.output)
 
     print(f"Analyse de l'image {image_path}...")
-    data = extract_info(image_path)
+    try:
+        data = extract_info(image_path)
+    except ExtractionError as exc:
+        sys.exit(f"Erreur : {exc}")
     print("Informations extraites :")
     print(json.dumps(data, indent=2, ensure_ascii=False))
 
