@@ -2,6 +2,7 @@ node_modules/
 dist/
 .env
 *.log
+__pycache__/
 
 # Base de données locale (SQLite)
 server/data.sqlite
