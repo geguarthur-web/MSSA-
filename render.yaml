@@ -10,3 +10,17 @@ services:
         generateValue: true
       - key: NODE_VERSION
         value: 22
+
+  - type: web
+    name: extract-mutuelle
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python web_app.py"
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: APP_PASSWORD
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.12.0

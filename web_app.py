@@ -6,20 +6,41 @@ mutuelle depuis le navigateur, de voir le résultat extrait par Claude,
 et de télécharger le fichier Excel cumulatif.
 """
 
+import hmac
 import io
 import os
 import tempfile
+from functools import wraps
 from pathlib import Path
 
-from flask import Flask, render_template_string, request, send_file
+from flask import Flask, Response, render_template_string, request, send_file
 import pandas as pd
 
 from extract_mutuelle import COLUMNS, ExtractionError, extract_info, save_to_excel
 
 OUTPUT_PATH = Path("mutuelles.xlsx")
+APP_PASSWORD = os.environ.get("APP_PASSWORD")
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 Mo
+
+
+def require_auth(view):
+    """Protège une route par mot de passe (Basic Auth) si APP_PASSWORD est défini."""
+
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if APP_PASSWORD:
+            auth = request.authorization
+            if not auth or not hmac.compare_digest(auth.password or "", APP_PASSWORD):
+                return Response(
+                    "Authentification requise.",
+                    401,
+                    {"WWW-Authenticate": 'Basic realm="Extraction mutuelle"'},
+                )
+        return view(*args, **kwargs)
+
+    return wrapped
 
 PAGE = """
 <!doctype html>
@@ -100,11 +121,13 @@ def render(error=None, result=None):
 
 
 @app.route("/", methods=["GET"])
+@require_auth
 def index():
     return render()
 
 
 @app.route("/", methods=["POST"])
+@require_auth
 def upload():
     file = request.files.get("image")
     if not file or file.filename == "":
@@ -136,6 +159,7 @@ def upload():
 
 
 @app.route("/download")
+@require_auth
 def download():
     if not OUTPUT_PATH.exists():
         return "Aucun fichier à télécharger pour le moment.", 404
@@ -154,4 +178,9 @@ if __name__ == "__main__":
             "Attention : la variable ANTHROPIC_API_KEY n'est pas définie. "
             "L'extraction échouera tant qu'elle ne sera pas définie."
         )
-    app.run(debug=True, host="127.0.0.1", port=5000)
+    if not APP_PASSWORD:
+        print("Attention : APP_PASSWORD n'est pas définie, l'application n'est pas protégée.")
+
+    port = int(os.environ.get("PORT", 5000))
+    debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
+    app.run(debug=debug_mode, host="0.0.0.0", port=port)
